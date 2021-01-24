@@ -142,6 +142,13 @@
 
 #define MOTOR_STOPPED_THRESHOLD_RPM 1000
 
+#define CHAR_PROP_1 0xFA
+#define CHAR_PROP_2 0xFB
+#define CHAR_PROP_3 0xFC
+#define CHAR_PROP_4 0xFD
+#define CHAR_PROP_BLOCK 0xFE
+#define CHAR_QUAD_BODY 0xFF
+
 #ifdef USE_OSD_STICK_OVERLAY
 typedef struct radioControls_s {
     uint8_t left_vertical;
@@ -1058,6 +1065,112 @@ static void osdElementMainBatteryVoltage(osdElementParms_t *element)
     }
 }
 
+static void osdElementMotorBlocked(osdElementParms_t *element)
+{
+    // currently only quad copters supported
+    /* if (getMotorCount() != 4) { */
+    /*     return; */
+    /* } */
+
+    if (!areMotorsRunning()) {
+        // if motors are not running, hide the element
+        return;
+    }
+
+    int i = 0;
+    int centerx = element->elemPosX;
+    int centery = element->elemPosY;
+    static int executionCounter = 0;
+    executionCounter += 1;
+
+    int animFrame = executionCounter % 4;
+
+    bool isBlink = executionCounter % 3 == 0;
+
+    static int motorStopCounter[4]; // rpm measurements are not precise, we need to filter a little
+
+    // this requires custom fonts
+    const char clockwiseAnim[4] = {CHAR_PROP_4, CHAR_PROP_3, CHAR_PROP_2, CHAR_PROP_1};
+    const char aClockwiseAnim[4] = {CHAR_PROP_2, CHAR_PROP_3, CHAR_PROP_4, CHAR_PROP_1};
+    // this doesn't
+    /* const char clockwiseAnim[4] = "\\-/|"; */
+    /* const char aClockwiseAnim[4] = "/-\\|"; */
+
+    int stoppedMotors = 0; // number of blocked motors
+
+    static char motor_char[4];
+
+    // Scenarios
+    // if in turtle mode
+    // show 'disarmed animation' until throttle is raised
+    // then show motor spinning
+    // if motor blocked, show alert
+  
+    // motors are active
+    for (; i < getMotorCount(); i++) {
+        /* if ( isFlipOverAfterCrashActive()) { */
+        /* if (motor[i] >= getMotorOutputLow() ) { */
+        if (motor[i] > 0 ) {
+            //motors should spin
+
+            if (getEscRpm(i) < MOTOR_STOPPED_THRESHOLD_RPM) {
+
+                stoppedMotors += 1;
+                if (motorStopCounter[i] < 2) {
+                    // becaue of 'noise' in rpm reporting, we should not show error on the very first frame.
+                    // wait at least 1 frame of error
+                    motorStopCounter[i] += 1;
+                    continue;
+                }
+
+                if (isBlink) { // blink will turn the symbol on and off making it appear to blink
+                    motor_char[i] = ' ';
+                } else {
+                    motor_char[i] = CHAR_PROP_BLOCK;
+                }
+                continue;
+            }
+
+            // this motor is ok. pick the next frame of animation
+            motorStopCounter[i] = 0;
+            // spinning animation, motors in turtle mode spin opposite direction
+            if (i == 0 || i == 3) {
+                motor_char[i] = clockwiseAnim[animFrame];
+            } else {
+                motor_char[i] = aClockwiseAnim[animFrame];
+            }
+           
+        } else {
+            motorStopCounter[i] = 0;
+            // motors are stopped
+            if (i == 0 || i == 3) {
+                motor_char[i] = clockwiseAnim[0];
+            } else {
+                motor_char[i] = aClockwiseAnim[0];
+            }
+
+        }
+    }
+
+    if (stoppedMotors > 0 || isFlipOverAfterCrashActive()) {
+        // Only show the element if there is a problem
+        // Or when TurtleMode is active
+        //
+        // lets draw our quad
+        char topStr[4] = "   \0";
+        char midStr[4] = {' ', CHAR_QUAD_BODY, ' ', '\0'};
+        char botStr[4] = "   \0";
+
+        botStr[2] = motor_char[0];
+        botStr[0] = motor_char[2];
+        topStr[0] = motor_char[3];
+        topStr[2] = motor_char[1];
+        osdDisplayWrite(element, centerx-1, centery-1, DISPLAYPORT_ATTR_BLINK, topStr);
+        osdDisplayWrite(element, centerx-1, centery, DISPLAYPORT_ATTR_BLINK, midStr);
+        osdDisplayWrite(element, centerx-1, centery+1, DISPLAYPORT_ATTR_BLINK, botStr);
+    }
+}
+
 static void osdElementMotorDiagnostics(osdElementParms_t *element)
 {
     int i = 0;
@@ -1643,6 +1756,7 @@ static const uint8_t osdElementDisplayOrder[] = {
 #ifdef USE_PERSISTENT_STATS
     OSD_TOTAL_FLIGHTS,
 #endif
+    OSD_MOTOR_BLOCKED,
 };
 
 // Define the mapping between the OSD element id and the function to draw it
@@ -1756,6 +1870,7 @@ const osdElementDrawFn osdElementDrawFunction[OSD_ITEM_COUNT] = {
 #ifdef USE_PERSISTENT_STATS
     [OSD_TOTAL_FLIGHTS]   = osdElementTotalFlights,
 #endif
+    [OSD_MOTOR_BLOCKED]           = osdElementMotorBlocked,
 };
 
 // Define the mapping between the OSD element id and the function to draw its background (static part)

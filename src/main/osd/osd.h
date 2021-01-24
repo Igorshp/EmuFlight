@@ -157,6 +157,7 @@ typedef enum {
     OSD_CAMERA_FRAME,
     OSD_EFFICIENCY,
     OSD_TOTAL_FLIGHTS,
+    OSD_MOTOR_BLOCKED,
     OSD_ITEM_COUNT // MUST BE LAST
 } osd_items_e;
 

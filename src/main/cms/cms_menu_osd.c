@@ -147,6 +147,7 @@ const OSD_Entry menuOsdActiveElemsEntries[] =
 #endif
     {"G-FORCE",            OME_VISIBLE, NULL, &osdConfig_item_pos[OSD_G_FORCE], DYNAMIC},
     {"MOTOR DIAGNOSTIC",   OME_VISIBLE, NULL, &osdConfig_item_pos[OSD_MOTOR_DIAG], DYNAMIC},
+    {"MOTOR BLOCK INDICATOR",OME_VISIBLE, NULL, &osdConfig_item_pos[OSD_MOTOR_BLOCKED], DYNAMIC},
 #ifdef USE_BLACKBOX
     {"LOG STATUS",         OME_VISIBLE, NULL, &osdConfig_item_pos[OSD_LOG_STATUS], DYNAMIC},
 #endif
